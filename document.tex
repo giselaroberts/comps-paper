@@ -1,0 +1,371 @@
+\documentclass[10pt,twocolumn]{article}
+
+% use the oxycomps style file
+\usepackage{oxycomps}
+\usepackage{dirtree}
+\usepackage{graphicx}
+
+
+% usage: \fixme[comments describing issue]{text to be fixed}
+% define \fixme as not doing anything special
+\newcommand{\fixme}[2][]{#2}
+% overwrite it so it shows up as red
+\renewcommand{\fixme}[2][]{\textcolor{red}{#2}}
+% overwrite it again so related text shows as footnotes
+%\renewcommand{\fixme}[2][]{\textcolor{red}{#2\footnote{#1}}}
+
+% read references.bib for the bibtex data
+\bibliography{references}
+
+% include metadata in the generated pdf file
+\pdfinfo{
+    /Title (The Occidental Computer Science Comprehensive Project: Goals, Timeline, Format, and Advice)
+    /Author (Justin Li)
+}
+
+% set the title and author information
+\title{Chord Coach: A Real-Time Interactive Web Tool for Beginner Guitar Chord Validation and Correction}
+\author{Gisela Roberts}
+\affiliation{Occidental College}
+\email{robertsg@oxy.edu}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Many beginners improve at a faster rate when learning an instrument with real-time feedback\cite{noauthor_ai-powered_nodate}. Without immediate evaluation, they may reinforce incorrect behavior. For my project, I am focusing specifically on the beginner guitarist as my target user. In their specific case, they may struggle to know whether they are playing a chord correctly and are limited to static online tab or videos that lack real-time correction string-by-string. 
+
+While there is an abundance of guitar education apps out there, they lack the crucial corrective quality that may simulate the benefits of person-to-person real-time instruction. 
+
+To address this issue, I have built a browser-based, corrective guitar trainer that listens to each plucked string, identifies the pitch in real time, maps it to the corresponding string and fret on a fretboard graphic, determines correctness, and evaluates the entire chord. The correctness is displayed to the user through a logical UI which includes a fretboard, and corrective visuals that guide the user to the correct fingering when they play a chord incorrectly. 
+
+
+
+\subsection{Problem Statement}
+ The central problem this project addresses is the lack of accessible, specifically corrective, and real-time feedback for beginner guitar learners, particularly feedback that helps users verify whether they are playing chords correctly as they practice.
+
+This problem is pedagogically significant. Research in motor learning and instrumental performance demonstrates that immediate, targeted feedback accelerates skill building and reduces the likelihood of ingrained errors \cite{duke_its_2009}\cite{noauthor_ai-powered_nodate}. Without timely feedback, beginners struggle to evaluate their own progress, often reinforcing mistakes that later become difficult to correct\cite{kehrer_does_2013}. Because guitar learning relies heavily on muscle memory and precise finger placement, the absence of real-time corrective signals can substantially hinder progress.
+
+The problem is also shaped by broader societal factors, most notably inequities in educational access. Private lessons are costly and geographically limited, leaving many learners dependent on self-directed practice. Studies on digital inequity show that access to high-quality music instruction disproportionately favors students with disposable income, stable support systems, and access to knowledgeable teachers \cite{warschauer_technology_2003}. As a result, beginners without these advantages may experience slower progress and lower motivation. A tool that provides structured, real-time feedback—without requiring lessons, specialized hardware, or installation—directly addresses this disparity by enabling effective independent learning.
+
+Web technology provides an opportunity to make real-time musical feedback more accessible. Modern browsers support high-quality audio capture and real-time processing, enabling interactive learning applications that require no installation and work across devices\cite{noauthor_web_2025}. Such tools have the potential to improve learning outcomes by increasing accessibility and providing high-quality feedback.
+
+This project proposes a web-based real-time chord learning system intended to provide immediate and specific feedback, improve learning efficiency, and make musical education more accessible. It specifically focuses on beginner chord learning (currently limited to a library of 12 beginner chords), with future extensibility in mind.
+
+
+\section{Technical Background}
+Understanding this system requires familiarity with several technical areas.
+\subsection{Audio Capture and Analysis}
+Understanding the system requires familiarity with the Web Audio API, a browser-native framework for real-time audio processing. The Web Audio API provides the foundational tools needed to access microphone input, construct audio processing graphs, analyze audio signals, and perform computations.\cite{noauthor_web_2025}. Specifically for my web-based audio analysis project, capturing audio input through the microphone is an essential feature which the Web Audio API supports. 
+
+Modern browsers expose device audio input through navigator.mediaDevices.getUserMedia(), which allows web applications to request access to the user’s microphone. Once permission is granted, the API returns a MediaStream object that can be utilzed in audio processing. This enables continuous real-time audio capture without requiring specialized hardware or software installation.\cite{noauthor_web_2025}. 
+
+Following the intake of data, the program must then determine the pitch. This project therefore relies on Essentia.js. Essentia.js is a audio analysis library that enables high-performance digital signal processing directly in the browser, providing access to a wide range of algorithms for real-time audio analysis\cite{noauthor_essentiajs_nodate}. In particular, I am using Essentia's PitchYin function. This function returns { pitch: Hz, pitchConfidence: 0.0–1.0 }. The pitchConfidence is determined by essentia through measuring how strongly the signal exhibits periodicity at the detected fundamental frequency—specifically, by evaluating the depth and clarity of the minimum in Yin’s difference function relative to alternative candidate periods. I have set my confidence threshold at 0.6.
+\subsection{Signal processing}
+Real-time musical analysis in a browser environment relies on several foundational concepts from digital signal processing (DSP). These principles enable the system to detect note onsets, estimate pitch, and interpret harmonic content in a guitar signal with sufficient accuracy for educational feedback.
+
+A key component of onset detection is the analysis of time-domain audio samples. Each incoming audio frame is represented as an array of amplitude values corresponding to pressure fluctuations captured by the microphone. The system computes the Root Mean Square (RMS) energy of each frame to quantify its overall amplitude. RMS is defined as the square root of the mean of the squared sample values, producing a scalar that correlates with perceived loudness. Sudden increases in RMS energy typically indicate a plucked guitar string, enabling the system to detect note onsets in real time\cite{bello_tutorial_2005}.
+
+To analyze pitch and harmonic structure, time-domain samples are converted into the frequency domain using the Fast Fourier Transform (FFT). The FFT decomposes the signal into discrete frequency bins, each representing the magnitude of a sinusoidal component at a specific frequency\cite{lenssen_introduction_2014}. This spectral information provides insight into the fundamental frequency and harmonic series of a played note. While the FFT alone does not guarantee accurate pitch estimation, it serves as a preliminary representation that supports downstream analysis.
+
+Pitch detection is necessary for determining the musical note being played. Many approaches exist, but real-time systems frequently rely on autocorrelation-based methods due to their efficiency and robustness for monophonic signals \cite{2002_JASA_YIN}. Algorithms such as PitchYin estimate pitch by comparing the waveform to time-shifted versions of itself and identifying periodicity corresponding to the fundamental frequency. These methods are well-suited for guitar notes, which have strong periodic components in the early portion of the waveform.
+\subsection{Music Theory}
+The interpretation of guitar audio signals relies on several fundamental concepts from music theory. These principles enable the system to convert detected frequencies into musical note names, identify valid chord tones, and ultimately evaluate user performance. 
+\subsubsection{Equal Temperment}
+Modern Western music typically uses the 12-tone equal temperament tuning system, in which the octave is divided into 12 equal semitones. Each semitone represents a constant frequency ratio of $2^{1/12}$. Using a reference pitch (commonly A4 = 440 Hz), any detected frequency can be mapped to the nearest musical pitch by computing its distance in semitones from this reference point. This calculation allows the system to classify each detected frequency as one of the standard note names (C, D, etc.) and assign it to a specific octave\cite{roads_computer_2023}.
+\subsubsection{Standard Guitar Tuning}
+A standard-tuned guitar uses the tuning E2, A2, D3, G3, B3, E4, corresponding to six open strings separated by intervals of perfect fourths, except for the major third between G and B. Knowledge of these reference frequencies allows the system to constrain pitch detection results to realistic values for each string. Because each fret increases pitch by exactly one semitone, a mapping from string–fret combinations to expected frequencies can be constructed for validation\cite{noauthor_physics_nodate}.
+\subsubsection{Fretboard Mapping and Semitone Intervals}
+The guitar fretboard is organized such that each fret raises the pitch of the string by one semitone. For example, the 1st fret on the low E string produces an F2, the 2nd fret an F\(\sharp\)/G\(\flat\)2, and so on. By precomputing these mappings for the desired fret range (frets 0–5 in the scope of this project), the system can compare detected notes with expected note positions and determine whether the user is fingering the chord correctly\cite{noauthor_physics_nodate}.
+\subsubsection{Chord Construction}
+Common guitar chords consist of combinations of three to four distinct pitch classes:
+
+Major chords: root, major third, perfect fifth
+
+Minor chords: root, minor third, perfect fifth
+
+Seventh chords: root, third (major or minor), fifth, minor seventh
+
+By defining each chord in terms of its component pitch classes, the system can evaluate whether the detected notes match the target chord. This enables string-by-string validation, as well as aggregate chord correctness assessments.
+\subsubsection{Enharmonic Equivalents}
+Many notes can be spelled in multiple ways (e.g., F\(\sharp\) = G\(\flat\)). Because pitch detection algorithms return numerical frequencies rather than note spellings, the system must account for enharmonic equivalence when matching detected pitches to chord tones. This ensures that chords are recognized correctly even if different but equivalent name spellings arise from music theory calculations\cite{roads_computer_2023}.
+
+
+\section{Prior Related Work}
+Research relevant to this project spans three major areas: music learning and real-time feedback, audio analysis and pitch detection, and web-based digital music systems. Together, these bodies of work establish both the pedagogical motivation and the technical feasibility of a browser-based guitar chord learning application. Across these areas, prior work collectively informed both the educational and technical design of the project.
+
+Music education research justified the emphasis on instantaneous, corrective feedback and guided the system’s focus on clarity, latency minimization, and user autonomy.
+
+DSP and pitch-estimation literature motivated the choice of autocorrelation-based algorithms, the adoption of confidence thresholds, and the handling of harmonics.
+
+Browser-based audio research demonstrated that all required processing could occur fully in the web environment, supporting the project’s goal of accessibility without installation or cost barriers.
+
+By integrating these insights, this project builds on and extends prior work through an open, browser-native system specifically targeted toward beginner guitar chord learning.
+\subsection{Music Education and Real-Time Feedback}
+There is a lot of music education research that emphasizes the importance of immediate and accurate feedback for developing instrument skills. Studies on expert performance and motor learning show that timely feedback accelerates skill acquisition and helps learners correct mistakes before they become habits \cite{duke_its_2009}. Research on self-regulated practice demonstrates that students who receive rapid, specific feedback develop stronger self-evaluation skills and show greater long-term progression than those who rely solely on instructor guidance \cite{mcpherson_longitudinal_2001}.
+
+This body of pedagogical research directly influenced the project’s focus on real-time, per-string specified feedback rather than retrospective feedback or unfocused feedback (for example, only stating correct or incorrect instead of per-string evaluation).
+\subsection{Audio Analysis, Pitch Detection, and Guitar DSP}
+Technical research on pitch detection provides the algorithms that make real-time musical feedback possible. The foundational Yin algorithm has demonstrated strong performance for monophonic signals such as isolated guitar strings\cite{2002_JASA_YIN}. Survey work on pitch detection algorithms identifies common failure modes such as octave errors, harmonic confusion, and noise sensitivity \cite{2002_JASA_YIN} which informed design decisions such as adding harmonic validation.
+
+\subsection{Browser-Based DSP, Web Audio API, and WebAssembly}
+Further research proves the feasibility of performing real-time audio analysis directly in the browser. Foundational work on the Web Audio API demonstrated that modern browsers can support low-latency audio pipelines suitable for interactive music applications \cite{noauthor_web_2025}. The development of Essentia.js further enables advanced DSP algorithms such as PitchYin to run directly in the browser\cite{noauthor_essentiajs_nodate}. These findings directly shaped the project’s architecture by supporting the decision to implement pitch detection entirely on the client side, without requiring server-side computation. As a result, the system aligns with the project’s pedagogical goal of maximum accessibility and ease of use.
+
+
+
+
+ 
+\section{Methods}
+The methods used in this project integrate established approaches from digital signal processing and instrument-learning research with new system design choices tailored specifically for a browser-based chord learning application. The following subsections outline the system architecture, audio analysis pipeline, note identification process, and chord validation logic.
+\subsection{Audio Capture}
+\subsubsection{Microphone Access and Audio Stream Handling}
+Audio input is obtained using navigator.mediaDevices.getUserMedia(), which provides continuous raw microphone data. This choice reflects Web Audio standards. Audio is routed into a single AudioContext, establishing a stable reference sample rate and a deterministic processing graph.
+\subsubsection{Frame Processing Strategy}
+Incoming audio is segmented into frames of 1024 samples. The decision to use frame-based processing follows conventions in DSP and pitch estimation research\cite{roads_computer_2023}. The system uses a loop that runs at ~60 frames per second. 
+
+\subsection{Onset Detection}
+The system identifies string plucks using RMS energy computed for each frame. Sudden increases in RMS amplitude serve as an indicator of note onset, consistent with established methods in guitar onset detection literature.
+
+
+Thresholds for onset detection (RMS $>$ 0.012) were tuned experimentally. A debounce interval of 300 ms was added to prevent multiple detections from a single pluck, as documented in prior onset-detection work.\cite{bello_tutorial_2005}
+\subsection{Pitch Detection}
+Pitch detection uses the Essentia.js implementation of PitchYin. Yin was selected because literature consistently identifies it as accurate, computationally efficient, and robust for monophonic signals such as isolated guitar strings \cite{2002_JASA_YIN}. Pitch detection runs only when onset is detected, 
+converts the buffer to Essentia format, then runs PitchYin(). This requires that pitchConfidence greater than 0.6
+
+Alternative algorithms (from FFT peak-picking to probabilistic estimators like pYIN) were evaluated conceptually. PitchYin was chosen because it: Runs efficiently in browser, outputs a confidence measurement used for error filtering, and performs well on guitar tones with strong periodicity\cite{2002_JASA_YIN}.
+
+Detected pitches below a confidence threshold of 0.6 are discarded following experimentation with different thresholds.
+\subsection{Note and String Identification}
+\subsubsection{Frequency to Note Conversion}
+After pitch estimation, frequencies are mapped to musical pitches using the equal temperament formula with A4=440 Hz as a reference. The formula used is: \\~\\semis = 12 × $log_{2}$(freq / 440) \\~\\This mapping follows standard music theory principles and methods in existing automatic transcription systems\cite{roads_computer_2023}
+
+\subsubsection{String Identification}
+String identification uses a nearest-match approach: each string’s expected frequency is modeled in GUITAR\_STRING\_FREQS, and detected pitches are compared to these frequencies. The code compares harmonics as well, ultimately checking freq, freq $/$ 2, and freq $/$ 4. Matches are accepted within a tolerance of 120 cents (cents are a logarithmic unit for measuring musical pitch intervals, 1 semitone = 100 cents). A sequential string detection workflow was incorporated (low E → high E). This sequential detection takes precedence to the frequency detection approach, but it still stands for possible future enhancements that could allow for more flexible timing or order of string plucking.  
+
+\subsection{Fretboard and Chord Validation}
+The system includes a data structure STRING\_NOTES representing the notes at each fret (0–5) for all six strings. Detected notes are validated against this mapping to determine whether the user’s fingering aligns with the expected chord shape.
+
+Chord templates (major, minor, seventh) are encoded via sets of expected pitch classes in CHORD\_NOTES  
+
+Per-string correctness is evaluated to check if the detected note is a valid chord tone on the expected string and fret.
+
+Then, overall chord correctness is determined to check if all detected notes collectively form the intended chord.
+\subsection{User Interface}
+The User Interface consists of 4 main pages:
+
+1. A home chord library page
+\includegraphics[scale=0.2]{home.png}
+
+2. A specific chord selection page
+\includegraphics[scale=0.2]{selectionpage.png}
+
+3. A static Learn page with the selected chord tab 
+\includegraphics[scale=0.2]{learn.png}
+
+4. A Play page with a record button offering real-time evaluation
+\includegraphics[scale=0.155]{play.png}
+
+The Play page incorporates many different stages of user interface elements.
+
+1. String by string highlighting
+\includegraphics[scale=0.2]{stringbystring.png}
+
+2. Red and green circles to indicate finger placements. Red means the placement is correct, and green means the placement is incorrect. If the circle appears at the top of the fretboard, this indicates that the user either played an open string, or played a note that is not possible with in the 1-5 fret range.
+
+3. Correct message
+\includegraphics[scale=0.2]{correct.png}
+
+4. Incorrect message
+\includegraphics[scale=0.2]{incorrect.png}
+
+
+Visual feedback was designed according to research showing that immediate, simple visual cues improve learner comprehension and retention\cite{mayer_cambridge_2022}. Choices such as per-string highlighting, error emphasis, and succinct messaging were grounded in this work.
+
+Prototyped UI variations were compared, and the selected design reflected the best balance between clarity, unobtrusiveness, and responsiveness.
+
+\section{Evaluation}
+The evaluation strategy combines objective system accuracy measures with subjective user experience assessments, reflecting both the technical and experiential aspects of the project. This approach aligns with literature in music education and human–computer interaction, which emphasizes that the effectiveness of learning tools depends not only on correctness but also on usability, clarity of feedback, and learner engagement \cite{mcpherson_longitudinal_2001}\cite{mayer_cambridge_2022}. The metrics described below were selected to measure whether the system provides reliable real-time chord detection and whether users can understand and benefit from its feedback without expert guidance.
+\subsection{Accuracy}
+\subsubsection{Correct Chord Detection Accuracy}
+To evaluate accuracy for correctly played chords, each of the twelve supported chords is played five times, and detection results are averaged.  The metric is computed as:\\~\\
+
+Accuracy = $\dfrac{Correct Detections}{12 x 5}$\\~\\
+
+
+This repeated-sampling approach is consistent with research that recommends multiple trials to mitigate frame-level noise and variability in pitch detection \cite{noauthor_data_2010}. 
+\subsubsection{Incorrect Chord Detection Accuracy}
+Because the system must not only detect correct chords but also reject incorrect ones, the evaluation includes an additional test using six deliberate mis-fingerings per chord. These include one open-string test, followed by five random chord shapes. These random chord shapes were selected generating a random chord from the 12, excluding the current chord being tests. Similar to the correct chord detection, results are averaged:\\~\\
+
+Accuracy = $\dfrac{Correct Rejections}{12 x 6}$\\~\\
+
+This metric reflects the real-world beginner scenario in which incorrect finger placement is common. 
+\subsubsection{User Chord Detection Accuracy}
+To capture variability across players, I asked my five users to play each chord three times. These users were selected because they self-identified as "beginner guitarists". Similar to the prior accuracy tests, system accuracy is combined and averaged. This supplements controlled testing by introducing variations in playing style, timing, volume, and technique by user. 
+
+\subsection{User Experience}
+\subsubsection{First-Time User Success Rate}
+User experience is evaluated through the percentage of first-time users who successfully operate the app with no instruction. This metric directly tests a goal of the project of enabling self-guided learning without real-life instruction. 
+
+This success rate is recorded during initial use, where the user must select a chord, enter Play mode, and successfully record themselves playing the chord (correctly or incorrectly).
+\subsubsection{Usability Interviews}
+Users participate in semi-structured interviews addressing clarity of feedback, learning experience, and overall opinions of user interface. Qualitative data from these interviews provide insight into aspects not captured by numerical metrics, consistent with human-centered design research. 
+
+\section{Results and Discussion}
+This section presents the results obtained so far, interprets them in relation to the methods used, and discusses caveats. Overall, the findings indicate that the system is able to detect beginner-level guitar chords with promising reliability, although certain limitations remain that affect its consistency.
+\subsection{Correct Chord Accuracy}
+When each of the twelve chords was played correctly five times (60 total trials), the system correctly identified 54 out of 60 chords, yielding an accuracy of 90\%.
+This result suggests that the combination of RMS onset detection, PitchYin-based pitch estimation, and fretboard mapping works effectively when the guitar is played correctly under controlled conditions. The high accuracy supports the decision to use autocorrelation-based pitch detection and to filter outputs by confidence level, both of which were motivated by the DSP literature on monophonic pitch estimation\cite{roads_computer_2023}.
+\subsection{Incorrect Chord Accuracy}
+Across six incorrect fingerings per chord, played five times each (72 trials), the system correctly rejected incorrect chords 63 out of 72 times, yielding an accuracy of 87.5\%.
+This result is especially important for the educational goals of the project. The incorrect-chord results suggest that the pitch detection and chord validation logic typically succeeds in distinguishing between intended and unintended fingerings.
+\subsection{User Chord Accuracy}
+Across 3 attempts per chord for each of the 5 user testers (180 trials), the system correctly detected the string and fret combinations played 152 out of 180 times, yielding an accuracy of 84.4\%. 
+
+These values are lower than the controlled condition results, likely due to variability in user plucking technique, inconsistent volume levels, and differences in playing position relative to the microphone. This aligns with known issues in monophonic pitch detection, particularly when open strings resonate or when users apply inconsistent pressure on fretted strings, creating unstable partials\cite{traube_estimating_2000}.
+\subsection{First-Time User Success}
+The percentage of users who successfully operated the app without instruction was 100\%. Five out of my five users were able to successfully navigate to the Play page and discover how to record and evaluate their playing. 
+
+This indicates that the interface aligns with usability research showing that clear visual cues and intuitive workflows support novice adoption\cite{mayer_cambridge_2022}. I will note that it took users a second to figure out the Learn page, seeing that it was static and had no interactive elements. 
+\subsection{Usability Interviews}
+Themes identified from user interviews include:
+
+Clarity of visual feedback: Users tended to agree with the visual feedback, and especially noted that the green vs. red indicators were very clear. 
+
+Ease of use: Users claimed that the system was very easy to use and convenient. One user suggested that a mobile phone version would be easier than having to find a surface for a laptop while playing guitar.
+
+Common points of confusion: Multiple users didn't understand or see value in the Learn page. One user stated that "Learn" indicated that there would be an interactive learning experience, and so they were confused when it was a static page. 
+
+These qualitative findings complement accuracy metrics by revealing how users interpret the feedback, how confident they feel using the app, and whether the interface supports learning as intended.
+\subsection{Caveats}
+Several factors may have influenced the results:
+
+Playing technique differences: Beginners produce noisier, less stable tones, which may explain lower user-based accuracy.
+
+Ambient noise: Even moderate background noise can affect onset detection and pitch stability.
+
+Harmonic errors: Occasional locking onto higher harmonics may mislead pitch detection, despite harmonic validation.
+
+
+\section{Ethical Considerations}
+The development and deployment of a browser-based guitar learning application have ethical implications that extend beyond technical performance. Following best practices in technology ethics and educational technology research, this section considers the project within both its technological and societal context, addressing issues of bias, inequity, accessibility, and user safety.
+\subsection{Societal and Education Context}
+Educational technologies often promise democratization yet risk reinforcing existing inequities if access, usability, and support structures are unevenly distributed \cite{teras_neil_2022}. While this system seeks to lower barriers by requiring only a browser and microphone, the assumption of device access, stable internet, and the physical ability to play an instrument means that some users may not benefit equally.
+
+Furthermore, studies such as UNESCO’s Technology in Education report (2023) show that digital learning tools that assume broadband access or modern hardware inadvertently widen global inequities, especially in low-income regions\cite{noauthor_technology_2023}. Although this project minimizes technical requirements, microphone quality and device performance still vary across socioeconomic lines, which can directly affect pitch detection accuracy and learning outcomes.
+
+Even a well-intentioned tool must be evaluated in relation to broader structural inequities.
+\subsection{Bias in Technical Design}
+Although the system does not use machine learning, it still exhibits structural biases rooted in hardware variability, acoustic environments, and the physical design of guitars. Research on algorithmic systems shows that biases often emerge not from training data alone but from design assumptions, default parameter settings, and systemic context \cite{kosc_review_2021}.
+
+Bias may arise in several forms:
+
+Hardware Bias
+
+Users with high-quality microphones are more likely to receive accurate feedback than those with older or low-cost devices. Because microphone quality correlates with socioeconomic status, this introduces a subtle inequity in learning experience.
+
+Acoustic Environment Bias
+
+Users in quiet homes benefit more than those in noisy or crowded living conditions. This parallels findings from Virgina Eubanks, who demonstrates that “ambient circumstances” often reinforce unequal outcomes in computational tools\cite{kosc_review_2021}.
+
+Instrument Bias
+
+The system is optimized for standard-tuned six-string guitars. Users with different instruments, modified tunings, or physically adaptive guitars are disadvantaged, raising questions of inclusivity for disabled musicians.
+\subsection{Accessibility and Disability Considerations}
+Access to learning is shaped by physical, sensory, and cognitive differences. Norman Coombs emphasizes that disability is often overlooked in digital learning systems, leading to unintentional exclusion\cite{coombs_making_2010}. In this project:
+
+Users with hearing impairments may not be able to verify auditory pitch or chord quality.
+
+Users with fine-motor challenges may struggle to produce clean tones needed for accurate detection.
+
+Users with sight impairments will not be unable to interact with the visual-based learning structure.
+
+While the system attempts to provide clear visual feedback, additional accessibility features such as alternative input modes, adaptive chord guides, or integration with haptic feedback devices may be required to support diverse learners.
+\subsection{Global and Local Inequity Considerations}
+UNESCO emphasizes that digital learning tools can unintentionally deepen global inequities when they assume conditions typically found in high-income regions. This project attempts to mitigate such issues through no installation requirement and cross-platform browser compatibility
+
+Still, inequity concerns remain. Within a global context,
+many regions lack consistent access to devices with functioning microphones\cite{noauthor_technology_2023}. Basic devices without audio capability will not be able to implement Web Audio APIs, and therefore can not successfully run my project. Cultural relevance also varies. My project is heavily built around western music traditions, and western chord learning does not reflect global musical traditions.
+
+Within a local context, students without stable home environments may struggle to find quiet practice spaces, which my project heavily relies on. Instrument access is itself a form of material inequity, and my project assumes that the user has access to their own guitar.
+
+These structural factors mean that the project may inadvertently benefit already-advantaged learners more than underserved ones, a concern raised across educational technology literature.
+
+
+\section{Replication Instructions}
+\subsection{Prerequisites}
+This project uses Node.js (version 25.1.0) and npm (version 11.6.2) as the Javascript runtime and package manager. It also relies on having access to a modern web browser with Web Audio API support (such as Chrome, Firefox, Safari, Edge). It is assumed that a Microphone is connected to the developer's device. They must also have Git (for cloning my repository). Real-time pitch detection is handled by Essentia.js (WebAssembly build), version 0.1.3 Installed via npm
+\subsection{Installation Steps}
+1. Clone the repository: git clone https://github.com/giselaroberts/comps-react-app.git
+2. Navigate to project directory: cd comps-react-app 
+3. Install dependencies: npm install 
+4. Start development server: npm run dev 
+5. Open browser to localhost URL
+6. Allow microphone access in the browser when prompted
+\section{Code Architecture Overview}
+\subsection{Project Structure}
+\dirtree{%
+    .1 src/.
+    .2 components/.
+    .3 Home.jsx.
+    .3 Home.css.
+    .3 ChordSelectionPage.jsx.
+    .3 ChordSelectionPage.css.
+    .3 LearnPage.jsx.
+    .3 LearnPage.css.
+    .3 PlayPage.jsx.
+    .3 PlayPage.css.
+    .3 PlayOverlay.jsx.
+    .3 GuitarTab.jsx.
+    .3 ChordOverlay.jsx.
+    .3 ChordLayout.jsx.
+    .3 ChordLayout.css.
+    .2 assets/.
+    .3 HomeArrow.png.
+    .3 LearnArrow.png.
+    .3 PlayArrow.png.
+    .2 hooks/.
+    .3 useGuitarDetecition.
+    .2 App.css.
+    .2 App.jsx.
+    .2 constans.js.
+    .2 index.css.
+    }%
+
+\subsubsection{Components}
+Home: displays the landing page with all 12 possible chord selction options. 
+ChordSelectionPage: displays the page of the specific chosen chord after selection from the home page. It displays two buttons - Learn and Play.
+LearnPage: displays the page after the Learn button selection.
+PlayPage: displays the page after the Play button selection. This is where the string-by-string chord validation takes place.
+PlayOverlay: displays the red or green circle fingering overlays over the fretboard.
+GuitarTab: displays the empty fretboard visual.
+ChordOverlay: displays the fixed LearnPage fretboard fingering overlay.
+ChordLayout: provides shared styling and navigation for all chord-specific pages, such as background color based on chord type.
+\subsubsection{Assets}
+Assets contains the navigation arrows in png format used on the ChordSelectionPage, LearnPage, and PlayPage.
+\subsubsection{Hooks}
+This custom hook encapsulates the entire audio processing pipeline, including:
+
+Microphone access
+
+RMS onset detection
+
+Pitch estimation via Essentia.js (PitchYin)
+
+Harmonic validation
+
+String identification
+
+Chord validation
+
+Sequential detection (in Learn mode)
+
+Internal state management for real-time updates
+
+\appendix
+
+
+
+\printbibliography
+
+\end{document}
