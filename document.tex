@@ -141,12 +141,12 @@ Detected pitches below a confidence threshold of 0.6 are discarded following exp
 After pitch estimation, frequencies are mapped to musical pitches using the equal temperament formula with A4=440 Hz as a reference. The formula used is: \\~\\semis = 12 × $log_{2}$(freq / 440) \\~\\This mapping follows standard music theory principles and methods in existing automatic transcription systems\cite{roads_computer_2023}
 
 \subsubsection{String Identification}
-String identification uses a nearest-match approach: each string’s expected frequency is modeled in GUITAR\_STRING\_FREQS, and detected pitches are compared to these frequencies. The code compares harmonics as well, ultimately checking freq, freq $/$ 2, and freq $/$ 4. Matches are accepted within a tolerance of 120 cents (cents are a logarithmic unit for measuring musical pitch intervals, 1 semitone = 100 cents). A sequential string detection workflow was incorporated (low E → high E). This sequential detection takes precedence to the frequency detection approach, but it still stands for possible future enhancements that could allow for more flexible timing or order of string plucking.  
+String identification uses a nearest-match approach: each string’s expected frequency is modeled, and detected pitches are compared to these frequencies. The code compares harmonics as well, ultimately checking freq, freq $/$ 2, and freq $/$ 4. Matches are accepted within a tolerance of 120 cents (cents are a logarithmic unit for measuring musical pitch intervals, 1 semitone = 100 cents). A sequential string detection workflow was incorporated (low E → high E). This sequential detection takes precedence to the frequency detection approach, but it still stands for possible future enhancements that could allow for more flexible timing or order of string plucking.  
 
 \subsection{Fretboard and Chord Validation}
-The system includes a data structure STRING\_NOTES representing the notes at each fret (0–5) for all six strings. Detected notes are validated against this mapping to determine whether the user’s fingering aligns with the expected chord shape.
+The system includes a data structure representing the notes at each fret (0–5) for all six strings. Detected notes are validated against this mapping to determine whether the user’s fingering aligns with the expected chord shape.
 
-Chord templates (major, minor, seventh) are encoded via sets of expected pitch classes in CHORD\_NOTES  
+Chord templates (major, minor, seventh) are encoded via sets of expected pitch classes.  
 
 Per-string correctness is evaluated to check if the detected note is a valid chord tone on the expected string and fret.
 
@@ -252,7 +252,7 @@ The development and deployment of a browser-based guitar learning application ha
 \subsection{Societal and Education Context}
 Educational technologies often promise democratization yet risk reinforcing existing inequities if access, usability, and support structures are unevenly distributed \cite{teras_neil_2022}. While this system seeks to lower barriers by requiring only a browser and microphone, the assumption of device access, stable internet, and the physical ability to play an instrument means that some users may not benefit equally.
 
-Furthermore, studies such as UNESCO’s Technology in Education report (2023) show that digital learning tools that assume broadband access or modern hardware inadvertently widen global inequities, especially in low-income regions\cite{noauthor_technology_2023}. Although this project minimizes technical requirements, microphone quality and device performance still vary across socioeconomic lines, which can directly affect pitch detection accuracy and learning outcomes.
+Furthermore, studies such as UNESCO’s Technology in Education report show that digital learning tools that assume broadband access or modern hardware inadvertently widen global inequities, especially in low-income regions\cite{noauthor_technology_2023}. Although this project minimizes technical requirements, microphone quality and device performance still vary across socioeconomic lines, which can directly affect pitch detection accuracy and learning outcomes.
 
 Even a well-intentioned tool must be evaluated in relation to broader structural inequities.
 \subsection{Bias in Technical Design}
@@ -296,12 +296,20 @@ These structural factors mean that the project may inadvertently benefit already
 \subsection{Prerequisites}
 This project uses Node.js (version 25.1.0) and npm (version 11.6.2) as the Javascript runtime and package manager. It also relies on having access to a modern web browser with Web Audio API support (such as Chrome, Firefox, Safari, Edge). It is assumed that a Microphone is connected to the developer's device. They must also have Git (for cloning my repository). Real-time pitch detection is handled by Essentia.js (WebAssembly build), version 0.1.3 Installed via npm
 \subsection{Installation Steps}
+
 1. Clone the repository: git clone https://github.com/giselaroberts/comps-react-app.git
+
 2. Navigate to project directory: cd comps-react-app 
+
 3. Install dependencies: npm install 
+
 4. Start development server: npm run dev 
+
 5. Open browser to localhost URL
+
 6. Allow microphone access in the browser when prompted
+
+
 \section{Code Architecture Overview}
 \subsection{Project Structure}
 \dirtree{%
